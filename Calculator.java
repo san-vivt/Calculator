@@ -6,84 +6,111 @@ public class Calculator {
         Scanner scanner = new Scanner(System.in);
         while (true) {
 
-            System.out.print("Введите выражение: ");
-            String input = scanner.nextLine();
+            String input = getUserInput(scanner);
 
-            if (input.equals("exit")) {
-                break;
-            }
+            if (isExitCommand(input)) break;
 
-            double left = 0;
-            double right = 0;
-            char operator = ' ';
-            boolean operatorFound = false;
-            boolean hasError = false;
+            if (validateInput(input)) continue;
 
-            // Собираем левое число, оператор и правое число
-            double currentNumber = 0;
-            boolean buildingNumber = false;
+            String normalized = normalizeInput(input);
 
-            for (int i = 0; i < input.length(); i++) {
-                char c = input.charAt(i);
+            double result = parseAndCalculate(normalized);
 
-                if (c >= '0' && c <= '9') {
-                    currentNumber = currentNumber * 10 + (c - '0');
-                    buildingNumber = true;
+            calculationResultPrinter(result);
 
-                } else if (c == '+' || c == '-' || c == '*' || c == '/') {
-                    if (!operatorFound) {
-                        left = currentNumber;
-                        operator = c;
-                        operatorFound = true;
-                        currentNumber = 0;
-                        buildingNumber = false;
-                    } else {
-                        // Второй оператор — неверный формат
-                        hasError = true;
-                        break;
-                    }
-
-                } else {
-                    // Любой другой символ — неверный формат
-                    hasError = true;
-                    break;
-                }
-            }
-
-            if (hasError || !operatorFound || !buildingNumber) {
-                System.out.println("Ошибка: неверный формат ввода.");
-                continue;
-            }
-
-            right = currentNumber;
-
-            // Вычисляем результат
-            double result = 0;
-
-            if (operator == '+') {
-                result = left + right;
-            } else if (operator == '-') {
-                result = left - right;
-            } else if (operator == '*') {
-                result = left * right;
-            } else if (operator == '/') {
-                if (right == 0) {
-                    System.out.println("Ошибка: деление на ноль невозможно.");
-                    continue;
-                }
-                result = left / right;
-            } else {
-                System.out.println("Ошибка: некорректный оператор.");
-                continue;
-            }
-
-            // Печатаем красиво: без ".0" если число целое
-            if (result == (long) result) {
-                System.out.println("Результат: " + (long) result);
-            } else {
-                System.out.println("Результат: " + result);
-            }
         }
         scanner.close();
+    }
+
+    private static String getUserInput(Scanner scanner) {
+        System.out.print("Введите выражение: ");
+        return scanner.nextLine();
+    }
+
+    public static boolean isExitCommand(String input) {
+        return input.equalsIgnoreCase("exit")
+                || input.equalsIgnoreCase("quit")
+                || input.equalsIgnoreCase("q");
+    }
+
+    public static String normalizeInput(String input) {
+        input = input.trim();
+        input = input.replaceAll("[+*/]", " $0 ");
+        input = input.replaceAll("(?<=\\d)-", " $0 ");
+        input = input.replaceAll(" +", " ");
+        return input;
+    }
+
+    public static boolean validateInput(String input) {
+        String str = (input == null) ? "" : input.trim();
+
+        // 1. Буквы (кириллица или латиница) — неверный формат
+        if (str.matches(".*[a-zA-Zа-яА-Я].*")) {
+            System.out.println("Ошибка: неверный формат ввода.");
+            return true;
+        }
+
+        // 2. Символы вне разрешённого набора (не цифры, не . пробел, не + - * /) — некорректный оператор
+        if (str.matches(".*[^0-9+\\-*/.\\s].*")) {
+            System.out.println("Ошибка: некорректный оператор.");
+            return true;
+        }
+
+        // 3. Точка в конце числа: "33/3." или ".3/3" — неверный формат
+        if (str.matches(".*\\.\\s*[+\\-*/].*") || str.matches(".*[+\\-*/]\\s*\\d*\\.\\s*$")) {
+            System.out.println("Ошибка: неверный формат ввода.");
+            return true;
+        }
+
+        // 4. Подсчёт операторов: должен быть ровно 1 (унарный минус не считается)
+        int opsCount = 0;
+        for (int i = 0; i < str.length(); i++) {
+            char c = str.charAt(i);
+            if (i > 0 && (c == '+' || c == '-' || c == '*' || c == '/')) {
+                if (c == '-' && "+-*/".indexOf(str.charAt(i - 1)) != -1) continue; // унарный минус
+                opsCount++;
+            }
+        }
+
+        // 5. Структурные ошибки — пустая строка, лишние/отсутствующие операторы, неверное начало/конец
+        if (str.isEmpty()
+                || str.matches("^[+*/].*")     // начинается с оператора (не минуса)
+                || str.matches(".*[+\\-*/]$")  // заканчивается оператором
+                || opsCount != 1                     // нет оператора или их несколько
+                || str.contains("  ")) {             // два числа через пробел без оператора
+            System.out.println("Ошибка: неверный формат ввода.");
+            return true;
+        }
+
+        // 6. Деление на ноль — ищем '/' за которым стоит '0' (пробелы игнорируются)
+        if (str.matches(".*/\\s*0(\\.0*)?($|[^0-9]).*")) {
+            System.out.println("Ошибка: деление на ноль невозможно.");
+            return true;
+        }
+
+        return false; // Ввод прошёл все проверки
+    }
+
+    public static double parseAndCalculate(String input) {
+        Scanner scanner = new Scanner(input);
+        double left = scanner.nextDouble();
+        String operator = scanner.next();
+        double right = scanner.nextDouble();
+        return mathCalculator(operator.charAt(0), left, right);
+    }
+
+    public static double mathCalculator(char operator, double left, double right) {
+        if (operator == '+') return left + right;
+        if (operator == '-') return left - right;
+        if (operator == '*') return left * right;
+        return left / right;
+    }
+
+    public static void calculationResultPrinter(double result) {
+        if (result == (long) result) {
+            System.out.println("Результат: " + (long) result);
+        } else {
+            System.out.println("Результат: " + result);
+        }
     }
 }
