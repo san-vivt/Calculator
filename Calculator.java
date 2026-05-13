@@ -8,9 +8,13 @@ public class Calculator {
 
             String input = getUserInput(scanner);
 
-            if (isExitCommand(input)) break;
+            if (isExitCommand(input)) {
+                break;
+            }
 
-            if (validateInput(input)) continue;
+            if (validateInput(input)) {
+                continue;
+            }
 
             String normalized = normalizeInput(input);
 
@@ -100,9 +104,15 @@ public class Calculator {
     }
 
     public static double mathCalculator(char operator, double left, double right) {
-        if (operator == '+') return left + right;
-        if (operator == '-') return left - right;
-        if (operator == '*') return left * right;
+        if (operator == '+') {
+            return left + right;
+        }
+        if (operator == '-') {
+            return left - right;
+        }
+        if (operator == '*') {
+            return left * right;
+        }
         return left / right;
     }
 
